@@ -239,9 +239,15 @@ async def health():
 
 
 # SPA serving (production — frontend/dist served by FastAPI)
+import sys
 from fastapi.responses import FileResponse
 
-frontend_dist = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
+if getattr(sys, "frozen", False):
+    # PyInstaller frozen binary: exe lives at resources/backend/augustus.exe
+    # frontend/dist is at resources/frontend/dist/
+    frontend_dist = Path(sys.executable).parent.parent / "frontend" / "dist"
+else:
+    frontend_dist = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
 
 if frontend_dist.exists():
     # Mount assets directory
