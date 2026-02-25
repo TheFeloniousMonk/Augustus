@@ -29,7 +29,7 @@ function getPort() {
 
 function checkPortInUse(port) {
     return new Promise((resolve) => {
-        const req = http.get(`http://localhost:${port}/api/health`, (res) => {
+        const req = http.get(`http://127.0.0.1:${port}/api/health`, (res) => {
             resolve(true);
             req.destroy();
         });
@@ -124,7 +124,7 @@ function createWindow(port) {
 
     const url = isDev
         ? `http://localhost:${DEV_FRONTEND_PORT}`
-        : `http://localhost:${port}`;
+        : `http://127.0.0.1:${port}`;
 
     mainWindow.loadURL(url);
 
