@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class Settings:
     """Application settings."""
     api_key_encrypted: str = ""
-    default_model: str = "claude-sonnet-4-6"
+    default_model: str = "claude-opus-4-6"
     default_temperature: float = 1.0
     default_max_tokens: int = 4096
     poll_interval: int = 60

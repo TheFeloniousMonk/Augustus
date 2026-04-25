@@ -2264,7 +2264,7 @@ class SessionManager:
             return normalize_model(agent_config.model_override)
         if self.settings and hasattr(self.settings, "default_model"):
             return normalize_model(self.settings.default_model)
-        return "claude-sonnet-4-6"
+        return "claude-opus-4-6"
 
     def _resolve_temperature(self, agent_config: Any | None = None) -> float:
         """Resolve temperature: agent override → app settings → hardcoded default."""
@@ -2301,11 +2301,11 @@ class SessionManager:
         """
         pricing: dict[str, tuple[float, float]] = {
             "claude-sonnet-4-6": (3.0, 15.0),
-            "claude-sonnet-4-20250514": (3.0, 15.0),
             "claude-sonnet-4-5-20250929": (3.0, 15.0),
+            "claude-opus-4-1-20250805": (15.0, 75.0),
             "claude-opus-4-5-20251101": (5.0, 25.0),
             "claude-opus-4-6": (5.0, 25.0),
-            "claude-haiku-35-20241022": (0.80, 4.0),
+            "claude-opus-4-7": (5.0, 25.0),
             "claude-haiku-4-5-20251001": (1.0, 5.0),
         }
         rates = pricing.get(model, (3.0, 15.0))

@@ -62,15 +62,19 @@ MODEL_ALIASES: dict[str, str] = {
     "opus": "claude-opus-4-6",
     "claude-opus": "claude-opus-4-6",
     "claude-opus-4": "claude-opus-4-6",
+    "claude-opus-4-6": "claude-opus-4-6",
+    "opus-4-6": "claude-opus-4-6",
+    "opus-4-7": "claude-opus-4-7",
+    "claude-opus-4-7": "claude-opus-4-7",
     "opus-4-5": "claude-opus-4-5-20251101",
     "claude-opus-4-5": "claude-opus-4-5-20251101",
+    "opus-4-1": "claude-opus-4-1-20250805",
+    "claude-opus-4-1": "claude-opus-4-1-20250805",
     "haiku": "claude-haiku-4-5-20251001",
     "claude-haiku": "claude-haiku-4-5-20251001",
-    "claude-haiku-35": "claude-haiku-35-20241022",
     "claude-haiku-4-5": "claude-haiku-4-5-20251001",
     "claude-sonnet-4-5": "claude-sonnet-4-5-20250929",
     "sonnet-4-5": "claude-sonnet-4-5-20250929",
-    "claude-sonnet-4-20250514": "claude-sonnet-4-20250514",
 }
 
 

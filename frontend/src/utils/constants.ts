@@ -78,4 +78,4 @@ export function getBasinColorByName(name: string): string {
 }
 
 /** Default Claude model name used when no override is configured. */
-export const DEFAULT_MODEL = 'claude-sonnet-4-6';
+export const DEFAULT_MODEL = 'claude-opus-4-6';
