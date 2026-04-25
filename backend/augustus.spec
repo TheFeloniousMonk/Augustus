@@ -7,6 +7,7 @@ Run with: python -m PyInstaller augustus.spec --clean --noconfirm
 
 from PyInstaller.utils.hooks import (
     collect_data_files,
+    collect_dynamic_libs,
     collect_submodules,
 )
 
@@ -17,6 +18,17 @@ block_cipher = None
 # ---------------------------------------------------------------------------
 chromadb_datas = collect_data_files("chromadb")
 chromadb_submodules = collect_submodules("chromadb")
+
+# ChromaDB's default embedding function lazy-imports onnxruntime + tokenizers
+# at first upsert.  PyInstaller's static analysis can't see those imports, so
+# we collect them explicitly here.  Without this, packaged builds raise:
+#   "The onnxruntime python package is not installed.  Please install it with
+#    `pip install onnxruntime`" — see issue #5.
+onnx_datas = collect_data_files("onnxruntime")
+onnx_binaries = collect_dynamic_libs("onnxruntime")
+onnx_submodules = collect_submodules("onnxruntime")
+tokenizers_datas = collect_data_files("tokenizers")
+tokenizers_binaries = collect_dynamic_libs("tokenizers")
 
 # Augustus own data files (schema.sql, etc.)
 augustus_datas = [
@@ -43,6 +55,11 @@ chromadb_hidden = [
     "chromadb.execution.executor.local",
     "chromadb.quota.simple_quota_enforcer",
     "chromadb.rate_limit.simple_rate_limit",
+    "chromadb.utils.embedding_functions",
+    "chromadb.utils.embedding_functions.onnx_mini_lm_l6_v2",
+    "onnxruntime",
+    "onnxruntime.capi._pybind_state",
+    "tokenizers",
 ]
 
 uvicorn_hidden = [
@@ -69,6 +86,7 @@ hidden_imports = (
     + chromadb_submodules
     + anthropic_submodules
     + mcp_submodules
+    + onnx_submodules
 )
 
 # ---------------------------------------------------------------------------
@@ -89,8 +107,8 @@ excludes = [
 a = Analysis(
     ["augustus/main.py"],
     pathex=[],
-    binaries=[],
-    datas=chromadb_datas + augustus_datas,
+    binaries=onnx_binaries + tokenizers_binaries,
+    datas=chromadb_datas + onnx_datas + tokenizers_datas + augustus_datas,
     hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},
