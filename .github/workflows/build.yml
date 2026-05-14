@@ -14,8 +14,16 @@ jobs:
         include:
           - os: windows-latest
             platform: win
+          # macOS Intel — runs natively on Intel hardware so PyInstaller emits
+          # an x86_64 backend. Fixes issue #6 (x64 dmg shipping arm64 backend).
+          - os: macos-13
+            platform: mac-x64
+            mac_arch: x64
+            lipo_arch: x86_64
           - os: macos-15
-            platform: mac
+            platform: mac-arm64
+            mac_arch: arm64
+            lipo_arch: arm64
           - os: ubuntu-latest
             platform: linux
 
@@ -58,6 +66,20 @@ jobs:
             test -f backend/dist/augustus/augustus && echo "Backend binary found" || (echo "Backend binary NOT found!" && exit 1)
           fi
 
+      # Guard against issue #6: the dmg's bundled backend must match the
+      # advertised architecture, or Intel users get spawn ENOEXEC (-86).
+      - name: Verify backend architecture (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          EXPECTED="${{ matrix.lipo_arch }}"
+          ACTUAL=$(lipo -archs backend/dist/augustus/augustus)
+          echo "Backend arch: $ACTUAL (expected: $EXPECTED)"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::Backend binary arch mismatch — built $ACTUAL, expected $EXPECTED"
+            exit 1
+          fi
+
       # Build frontend (Vite)
       - name: Install frontend dependencies
         run: npm ci
@@ -73,7 +95,15 @@ jobs:
         working-directory: electron
 
       - name: Build Electron app
-        run: npx electron-builder --publish never
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            # Restrict the build to this runner's native arch so we don't
+            # cross-bundle the wrong PyInstaller backend (see issue #6).
+            npx electron-builder --mac --arch ${{ matrix.mac_arch }} --publish never
+          else
+            npx electron-builder --publish never
+          fi
         working-directory: electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,6 +130,12 @@ jobs:
             -o -name "*.AppImage" \
             -o -name "latest*.yml" \
           \) -exec cp {} staging/ \;
+          # The two macOS jobs each emit their own latest-mac.yml listing only
+          # their arch — rename per-arch so they survive merge-multiple in the
+          # publish job, which combines them into one canonical file.
+          if [ "$RUNNER_OS" = "macOS" ] && [ -f staging/latest-mac.yml ]; then
+            mv staging/latest-mac.yml staging/latest-mac-${{ matrix.mac_arch }}.yml
+          fi
           # Copy .mcpb Desktop Extension
           cp mcp-extension/*.mcpb staging/ 2>/dev/null || true
           echo "Staged files:"
@@ -127,6 +163,59 @@ jobs:
 
       - name: List collected artifacts
         run: ls -lh dist/
+
+      # Combine the per-arch latest-mac yml files into one canonical
+      # latest-mac.yml whose files[] lists both arm64 and x64 dmgs, so
+      # electron-updater can serve the right binary to each user.
+      - name: Merge macOS auto-update manifests
+        shell: bash
+        run: |
+          shopt -s nullglob
+          mac_ymls=(dist/latest-mac-*.yml)
+          if [ ${#mac_ymls[@]} -eq 0 ]; then
+            echo "No per-arch latest-mac yml files — skipping merge"
+            exit 0
+          fi
+          python3 -m pip install --quiet pyyaml
+          python3 - "${mac_ymls[@]}" <<'PY'
+          import os, sys, yaml
+          sources = sys.argv[1:]
+          base = None
+          files = []
+          for path in sources:
+              with open(path) as f:
+                  data = yaml.safe_load(f)
+              if base is None:
+                  base = dict(data)
+              files.extend(data.get("files", []))
+              # Use the newest releaseDate across inputs
+              if data.get("releaseDate", "") > base.get("releaseDate", ""):
+                  base["releaseDate"] = data["releaseDate"]
+          # Dedupe files[] by url, preserving order
+          seen, deduped = set(), []
+          for entry in files:
+              url = entry.get("url")
+              if url in seen:
+                  continue
+              seen.add(url)
+              deduped.append(entry)
+          base["files"] = deduped
+          # Prefer arm64 as the top-level path/sha512 default since it's the
+          # majority of macOS installs; electron-updater uses files[] to pick
+          # the actual download, this is just legacy fallback.
+          arm = next((e for e in deduped if "arm64" in (e.get("url") or "")), None)
+          if arm:
+              base["path"] = arm["url"]
+              base["sha512"] = arm["sha512"]
+          out = "dist/latest-mac.yml"
+          with open(out, "w") as f:
+              yaml.safe_dump(base, f, sort_keys=False)
+          for path in sources:
+              os.remove(path)
+          print(f"Merged {len(sources)} manifests into {out}:")
+          with open(out) as f:
+              print(f.read())
+          PY
 
       - name: Create and publish GitHub Release
         env:
