@@ -1485,8 +1485,39 @@ tr.basin-deprecated td {
 .update-progress-text { color: var(--text-secondary); }
 .update-error { color: var(--accent-alert); font-size: 12px; }
 
+.topbar-update-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.topbar-version {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.topbar-update-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-color), color var(--transition-color);
+}
+.topbar-update-check:hover:not(:disabled) {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+.topbar-update-check:disabled { cursor: default; color: var(--text-muted); }
+
 /* ---- Animations ---- */
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+.spin { animation: spin 1s linear infinite; }
