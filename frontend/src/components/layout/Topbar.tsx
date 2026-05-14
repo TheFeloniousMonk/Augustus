@@ -1,4 +1,4 @@
-import { Bell, Sun, Moon, Activity, Clock, Play, Pause, AlertTriangle, Info, X } from 'lucide-react';
+import { Bell, Sun, Moon, Activity, Clock, Play, Pause, AlertTriangle, Info, X, RefreshCw, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../hooks/useTheme';
 import StatusChip from '../ui/StatusChip';
@@ -7,6 +7,7 @@ import McpReinstallBanner from '../ui/McpReinstallBanner';
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../../api/client';
 import { useAlertDismissals, alertDismissKey } from '../../hooks/useAlertDismissals';
+import { useUpdates } from '../../hooks/useUpdates';
 import type { SystemAlert } from '../../types';
 
 interface TopbarProps {
@@ -26,6 +27,20 @@ export default function Topbar({ pageTitle }: TopbarProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const { dismissed: dismissedAlerts, dismiss: dismissAlert } = useAlertDismissals();
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const { checking, lastCheckResult, updateAvailable, downloading, downloaded, checkForUpdate } = useUpdates();
+
+  useEffect(() => {
+    window.augustus?.getAppVersion().then(setAppVersion).catch(() => {});
+  }, []);
+
+  const updateButtonTitle = lastCheckResult === 'up-to-date'
+    ? "You're up to date"
+    : checking
+      ? 'Checking for updates...'
+      : updateAvailable || downloading || downloaded
+        ? 'Update pending — see banner above'
+        : 'Check for updates';
 
   // Poll orchestrator status every 10 seconds
   useEffect(() => {
@@ -295,6 +310,29 @@ export default function Topbar({ pageTitle }: TopbarProps) {
             );
           })()}
         </div>
+
+        {window.augustus && (
+          <div className="topbar-update-control">
+            {appVersion && (
+              <span className="topbar-version" title={`Installed version v${appVersion}`}>
+                v{appVersion}
+              </span>
+            )}
+            <button
+              className="topbar-update-check"
+              onClick={checkForUpdate}
+              disabled={checking}
+              title={updateButtonTitle}
+              aria-label={updateButtonTitle}
+            >
+              {lastCheckResult === 'up-to-date' ? (
+                <Check size={14} />
+              ) : (
+                <RefreshCw size={14} className={checking ? 'spin' : undefined} />
+              )}
+            </button>
+          </div>
+        )}
 
         <div className="mode-switcher">
           <button
