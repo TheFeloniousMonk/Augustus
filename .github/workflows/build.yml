@@ -100,7 +100,9 @@ jobs:
           if [ "$RUNNER_OS" = "macOS" ]; then
             # Restrict the build to this runner's native arch so we don't
             # cross-bundle the wrong PyInstaller backend (see issue #6).
-            npx electron-builder --mac --arch ${{ matrix.mac_arch }} --publish never
+            # electron-builder uses flag-style arch selectors (--x64 / --arm64),
+            # not --arch <value>.
+            npx electron-builder --mac --${{ matrix.mac_arch }} --publish never
           else
             npx electron-builder --publish never
           fi
