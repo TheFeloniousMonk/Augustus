@@ -14,9 +14,11 @@ jobs:
         include:
           - os: windows-latest
             platform: win
-          # macOS Intel — runs natively on Intel hardware so PyInstaller emits
-          # an x86_64 backend. Fixes issue #6 (x64 dmg shipping arm64 backend).
-          - os: macos-13
+          # macOS x86_64 — cross-compiled on Apple Silicon via Rosetta 2 and
+          # the python.org universal2 Python, since GitHub-hosted Intel macOS
+          # runners (macos-13) have become unreliable / queue indefinitely.
+          # The lipo verify step downstream guarantees we actually shipped x86_64.
+          - os: macos-15
             platform: mac-x64
             mac_arch: x64
             lipo_arch: x86_64
@@ -39,22 +41,53 @@ jobs:
           node-version: 20
 
       - name: Setup Python
+        if: matrix.mac_arch != 'x64'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
           cache-dependency-path: backend/requirements.txt
 
+      # Cross-compile path for the macOS x64 job — runs on macos-15 (arm64)
+      # but installs the python.org universal2 Python and drives it through
+      # `arch -x86_64` so PyInstaller emits an x86_64 backend. The lipo step
+      # below verifies the output before we proceed.
+      - name: Setup Python (macOS x86_64 cross-compile)
+        if: matrix.mac_arch == 'x64'
+        shell: bash
+        run: |
+          set -e
+          sudo softwareupdate --install-rosetta --agree-to-license || true
+          PY_VERSION="3.11.9"
+          PKG="python-${PY_VERSION}-macos11.pkg"
+          curl -fsSL "https://www.python.org/ftp/python/${PY_VERSION}/${PKG}" -o "/tmp/${PKG}"
+          sudo installer -pkg "/tmp/${PKG}" -target /
+          PY_DIR="/Library/Frameworks/Python.framework/Versions/3.11/bin"
+          echo "${PY_DIR}" >> "$GITHUB_PATH"
+          echo "PY_CMD=arch -x86_64 ${PY_DIR}/python3" >> "$GITHUB_ENV"
+          arch -x86_64 "${PY_DIR}/python3" --version
+          arch -x86_64 "${PY_DIR}/python3" -c "import platform; print('reports machine:', platform.machine())"
+
       # Install Python dependencies + PyInstaller
       - name: Install Python dependencies
+        shell: bash
         run: |
-          pip install -r backend/requirements.txt
-          pip install "pyinstaller>=6.0.0"
+          PY="${PY_CMD:-python}"
+          $PY -m pip install -r backend/requirements.txt
+          $PY -m pip install "pyinstaller>=6.0.0"
 
-      # Bundle Python backend with PyInstaller
+      # Bundle Python backend with PyInstaller. Cross-compile job invokes
+      # PyInstaller directly under `arch -x86_64` rather than going through
+      # build_backend.py, so subprocess spawns inherit x86_64 mode.
       - name: Build backend (PyInstaller)
-        run: python build_backend.py
+        shell: bash
         working-directory: backend
+        run: |
+          if [ -n "$PY_CMD" ]; then
+            $PY_CMD -m PyInstaller augustus.spec --clean --noconfirm
+          else
+            python build_backend.py
+          fi
 
       # Verify PyInstaller output exists
       - name: Verify backend build
