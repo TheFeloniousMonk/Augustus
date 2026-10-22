@@ -12,8 +12,8 @@
         "electron-log": "^5.1.0"
     },
     "devDependencies": {
-        "electron": "^28.0.0",
-        "electron-builder": "^24.0.0"
+        "electron": "^44.9.3",
+        "electron-builder": "^26.18.0"
     },
     "build": {
         "appId": "com.augustus.app",
