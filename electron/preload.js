@@ -2,7 +2,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('augustus', {
     platform: process.platform,
-    version: require('./package.json').version,
     isElectron: true,
     getDataDir: () => ipcRenderer.invoke('get-data-dir'),
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
